@@ -1,21 +1,34 @@
+import os
 from datetime import datetime
 import csv
 import logging
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import requests
+from dotenv import load_dotenv
 
 # =========================
-# 🔧 CONFIGURAÇÕES
+# 🔧 ENV / CONFIG
 # =========================
-BASE_URL = "https://cat-fact.herokuapp.com"
-CSV_PATH = "data/uolcatlovers_cat_facts.csv"
-REQUEST_TIMEOUT = 10
-SLEEP_BETWEEN_REQUESTS = 2  # segundos
-DEFAULT_TOTAL = 100
-DEFAULT_BATCH = 1  # API é instável, padrão seguro
-ANIMAL_TYPE = "cat"
+load_dotenv()
+
+BASE_URL = os.getenv("CAT_FACT_API_BASE_URL")
+ANIMAL_TYPE = os.getenv("CAT_FACT_ANIMAL_TYPE", "cat")
+
+CSV_PATH = os.getenv("CSV_OUTPUT_PATH", "data/cat_facts.csv")
+
+REQUEST_TIMEOUT = int(os.getenv("REQUEST_TIMEOUT", 10))
+SLEEP_BETWEEN_REQUESTS = int(os.getenv("SLEEP_BETWEEN_REQUESTS", 2))
+DEFAULT_TOTAL = int(os.getenv("DEFAULT_TOTAL", 100))
+DEFAULT_BATCH = int(os.getenv("DEFAULT_BATCH", 1))
+
+# ✅ validação explícita (local correto)
+if not BASE_URL:
+    raise ValueError(
+        "CAT_FACT_API_BASE_URL não definido. "
+        "Verifique o arquivo .env (use example.env como base)."
+    )
 
 # =========================
 # 📌 LOGGING
@@ -28,6 +41,10 @@ logging.basicConfig(
 # =========================
 # 🔌 CONSUMO DA API
 # =========================
+
+# A API pode retornar 503 (Heroku free dyno descontinuado)
+# Esse comportamento é tratado como falha transitória
+
 def fetch_cat_facts(amount: int) -> List[Dict[str, Any]]:
     """
     Busca fatos de gatos na API.
@@ -41,9 +58,12 @@ def fetch_cat_facts(amount: int) -> List[Dict[str, Any]]:
 
     try:
         response = requests.get(url, params=params, timeout=REQUEST_TIMEOUT)
+
         if response.status_code != 200:
             logging.warning(
-                "Falha na API Cat Facts (status=%s)", response.status_code
+                "Falha na API Cat Facts | status=%s | url=%s",
+                response.status_code,
+                url,
             )
             return []
 
@@ -63,6 +83,9 @@ def fetch_cat_facts(amount: int) -> List[Dict[str, Any]]:
         logging.warning("Erro de request na API Cat Facts: %s", exc)
         return []
 
+    except requests.RequestException as exc:
+        logging.warning("Erro de request na API Cat Facts: %s", exc)
+        return []
 
 # =========================
 # 🔄 NORMALIZAÇÃO
@@ -132,6 +155,8 @@ def main(
     resultados: Dict[str, Dict[str, Any]] = {}
     restantes = total
 
+    failed_batches = 0  
+
     while restantes > 0:
         quantidade = min(batch, restantes)
         logging.info("Buscando %d fato(s) na API", quantidade)
@@ -139,6 +164,7 @@ def main(
         fatos = fetch_cat_facts(quantidade)
 
         if not fatos:
+            failed_batches += 1  
             logging.warning("Nenhum dado retornado neste batch. Continuando...")
             restantes -= quantidade
             time.sleep(SLEEP_BETWEEN_REQUESTS)
@@ -154,7 +180,13 @@ def main(
         time.sleep(SLEEP_BETWEEN_REQUESTS)
 
     export_to_csv(CSV_PATH, list(resultados.values()))
-    logging.info("Processo finalizado com sucesso")
+    
+    logging.info(
+        "Processo finalizado | Registros únicos: %d | Batches com falha: %d",
+        len(resultados),
+        failed_batches,
+    )
+
 
 
 if __name__ == "__main__":
