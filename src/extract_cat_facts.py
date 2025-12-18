@@ -113,8 +113,6 @@ def normalize_fact(fact: Dict[str, Any]) -> Dict[str, Any]:
 # =========================
 # 💾 EXPORTAÇÃO CSV
 # =========================
-import os
-
 def export_to_csv(path: str, rows: List[Dict[str, Any]]) -> None:
     os.makedirs(os.path.dirname(path), exist_ok=True)
 
