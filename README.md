@@ -39,49 +39,48 @@ e permitindo fácil adaptação entre ambientes local, cloud e CI/CD.
 
 🏗️ Essa arquitetura foi pensada para crescer junto com o volume de dados e, se necessário, pode ser implementada sem grandes mudanças estruturais.
 
-┌──────────────────────────┐
-│ Cat Facts API (External) │
-└─────────────┬────────────┘
-              │ HTTPS
-              v
-┌────────────────────────────────┐
-│ Cloud Run – Extract Service     │
-│ - Consume /facts/random         │
-│ - Payload validation            │
-│ - Logging & error handling      │
-└─────────────┬──────────────────┘
-              │ Events
-              v
-┌────────────────────────────────┐
-│ Pub/Sub                        │
-│ Topic: cat-facts-raw            │
-│ - Decoupling                   │
-│ - Automatic retries            │
-└─────────────┬──────────────────┘
-              │
-              v
-┌────────────────────────────────┐
-│ Processing (Dataflow / Run)    │
-│ - Normalization                │
-│ - Deduplication (_id)          │
-│ - Enrichment                   │
-└─────────────┬─────────┬────────┘
-              │ RAW     │ CURATED
-              v         v
-┌──────────────────┐   ┌────────────────────┐
-│ Cloud Storage     │   │ BigQuery            │
-│ bucket/raw        │   │ dataset.cat_facts  │
-│ jsonl / csv       │   │ analytic table     │
-└──────────┬────────┘   └──────────┬─────────┘
-           │                        │
-           v                        v
- Reprocessing / Audit        Looker / SQL / Apps
+### Arquitetura de Ingestão e Processamento
 
-┌──────────────────────────┐
-│ Cloud Scheduler           │
-│ - Triggers ingestion      │
-└──────────────────────────┘
+**1. Fonte de Dados**
+- Cat Facts API (External)
+- Protocolo: HTTPS
+- Endpoint: `/facts/random`
 
+**2. Ingestão**
+- Cloud Run – Extract Service
+  - Consumo da API
+  - Validação de payload
+  - Logging e controle de erros
+  - Emissão de eventos
+
+**3. Desacoplamento**
+- Pub/Sub
+  - Tópico: `cat-facts-raw`
+  - Retry automático
+  - Tolerância a falhas
+  - Isolamento entre ingestão e processamento
+
+**4. Processamento**
+- Dataflow ou Cloud Run (Process)
+  - Normalização dos dados
+  - Deduplicação por `_id`
+  - Enriquecimento
+
+**5. Armazenamento**
+- RAW
+  - Cloud Storage (`bucket/raw`)
+  - Formatos: JSONL / CSV
+- CURATED
+  - BigQuery (`dataset.cat_facts`)
+  - Tabela analítica final
+
+**6. Consumo**
+- SQL / Looker / Aplicações
+- Auditoria e reprocessamento a partir da camada RAW
+
+**7. Orquestração**
+- Cloud Scheduler
+  - Disparo periódico da ingestão
 
 
 ## 🧠 Considerações de Arquitetura
