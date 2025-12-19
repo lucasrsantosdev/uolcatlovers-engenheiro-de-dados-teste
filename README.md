@@ -24,9 +24,13 @@ e permitindo fácil adaptação entre ambientes local, cloud e CI/CD.
 🛠️ Mesmo com essa limitação externa, optei por manter o script como se estivesse lidando com um cenário real de produção:
 
 🛡️ Lidar de forma resiliente com falhas de API
+
 🔁 Realizar múltiplas tentativas de coleta
+
 📄 Manter o contrato de saída dos dados
+
 💾 Gerar o arquivo CSV local com cabeçalho, mesmo quando não há registros
+
 ✅ Com isso, o pipeline permanece estável e previsível, algo essencial em integrações com serviços externos que podem ficar indisponíveis temporariamente.
 
 ## ☁️ Questão 2 – Arquitetura em Nuvem (Google Cloud)
@@ -81,9 +85,13 @@ e permitindo fácil adaptação entre ambientes local, cloud e CI/CD.
 ## 🧠 Considerações de Arquitetura
 
 ⚙️ Cloud Run foi escolhido por ser serverless, simples de operar e escalar automaticamente conforme a demanda.
+
 📬 Pub/Sub desacopla a ingestão do processamento, evitando perda de dados em cenários de falha ou picos de volume.
+
 🧱 Cloud Storage (RAW) mantém os dados originais, permitindo auditoria e reprocessamento quando necessário.
+
 📊 BigQuery funciona como a camada analítica final, facilitando o consumo pelo time de analytics.
+
 🚀 Essa arquitetura permite evoluir facilmente para um modelo near real-time no futuro, sem mudanças estruturais grandes.
 
 ℹ️ Obs: para um volume pequeno, Cloud Functions também seria viável. A escolha do Cloud Run foi feita pensando em evolução de carga, controle de dependências e facilidade de versionamento do serviço.
@@ -112,8 +120,11 @@ sql/bigquery/02_select_cat_facts_updated_aug_2020.sql
 🧪 A consulta retorna apenas os campos necessários para o ambiente de QA:
 
 📝Texto do fato
+
 📅Data de criação
+
 ⏱️Data de atualização
+
 📤O resultado pode ser exportado diretamente para um arquivo CSV separado por vírgulas utilizando as funcionalidades nativas do BigQuery.
 
 📂sql no caminho abaixo
@@ -123,6 +134,9 @@ sql/bigquery/03_sample_cat_facts_for_qa.sql
 ## 🔮 Próximos Passos Possíveis
 
 🧬 Implementar controle de versionamento de schema
+
 🧪 Criar testes automatizados para o extrator
+
 📡 Adicionar monitoramento e alertas (Cloud Monitoring)
+
 🔁 Implementar carga incremental baseada em updated_at
