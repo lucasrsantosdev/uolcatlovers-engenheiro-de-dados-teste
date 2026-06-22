@@ -170,3 +170,26 @@ sql/bigquery/03_sample_cat_facts_for_qa.sql
 * testes automatizados
 * controle de versionamento de schema
 * orquestração completa do pipeline
+
+# Arquitetura (Diagrama)
+
+```mermaid
+flowchart TD
+
+A[Cat Facts API] --> B[Cloud Run - Extract Service]
+B --> C[Pub/Sub - Ingestion Queue]
+C --> D[Cloud Run / Dataflow - Processing Layer]
+D --> E[Cloud Storage - RAW Zone]
+E --> F[BigQuery - Data Warehouse]
+F --> G[BI Tools / Analytics / Data Science]
+
+subgraph Orquestração
+H[Cloud Scheduler]
+H --> B
+end
+
+subgraph Observabilidade (Evolução Futura)
+I[Cloud Monitoring]
+I --> B
+I --> D
+end
