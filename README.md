@@ -183,12 +183,12 @@ D --> E[Cloud Storage - RAW Zone]
 E --> F[BigQuery - Data Warehouse]
 F --> G[BI Tools / Analytics / Data Science]
 
-subgraph Orquestração
+subgraph Orquestracao
 H[Cloud Scheduler]
 H --> B
 end
 
-subgraph Observabilidade (Evolução Futura)
+subgraph Observabilidade
 I[Cloud Monitoring]
 I --> B
 I --> D
