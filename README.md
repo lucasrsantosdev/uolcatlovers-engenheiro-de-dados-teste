@@ -1,143 +1,172 @@
+# UOL Cat Lovers - Engenharia de Dados Teste
 
-## ℹ️ℹ️ℹ️“Copie example.env para .env antes de rodar.”ℹ️ℹ️ℹ️ ##
+Projeto desenvolvido para o case técnico da UOL, simulando a evolução de uma startup que consome dados da API pública Cat Facts.
 
-## 🧭 Visão Geral
+O objetivo do projeto é demonstrar:
 
-📌 Projeto desenvolvido para o case da Uol, simulando a evolução de uma startup desde uma extração simples de dados até uma arquitetura analítica escalável em nuvem.
+* extração de dados via Python
+* persistência local em CSV
+* modelagem analítica no BigQuery
+* consultas SQL
+* proposta de arquitetura escalável em Google Cloud
 
-⚠️ Durante o desenvolvimento, a API pública utilizada apresentou indisponibilidade constante (HTTP 503). Em vez de contornar ou ignorar esse cenário, a solução foi pensada para lidar com falhas reais de integração, mantendo contratos de dados estáveis e permitindo a evolução futura da arquitetura.
-A indisponibilidade da API não foi tratada como um bloqueio, mas como parte do problema a ser resolvido
+---
 
-🧠 Essa abordagem reflete um cenário comum em ambientes de produção, onde dependências externas nem sempre estão disponíveis.
+# Estrutura do Projeto
 
-ℹ️  Obs: As configurações de ambiente (URL da API, timeouts, paths e parâmetros de execução)
-foram isoladas em variáveis de ambiente (`.env`), seguindo boas práticas de segurança
-e permitindo fácil adaptação entre ambientes local, cloud e CI/CD.
+```text
+.
+├── data/
+│   └── uolcatlovers_cat_facts.csv
+├── sql/
+│   └── bigquery/
+│       ├── 01_create_table_cat_facts.sql
+│       ├── 02_select_cat_facts_updated_aug_2020.sql
+│       └── 03_sample_cat_facts_for_qa.sql
+├── src/
+│   └── extract_cat_facts.py
+├── .env.example
+├── requirements.txt
+└── README.md
+```
 
+---
 
-## 🐍 Questão 1 – Extração de Cat Facts (Python)
+# Configuração
 
-🐍 Foi desenvolvido um script simples em Python para extrair fatos sobre gatos a partir da API pública Cat Facts, seguindo a documentação oficial do projeto.
+Copie o arquivo `.env.example` para `.env` antes de executar o projeto.
 
-🚨 Durante os testes, a API apresentou instabilidade contínua. Todos os endpoints testados (/facts e /facts/random) retornaram erro HTTP 503 (Service Unavailable), indicando que o backend da aplicação (Heroku free dyno) está fora do ar ou descontinuado.
+## Instalação
 
-🛠️ Mesmo com essa limitação externa, optei por manter o script como se estivesse lidando com um cenário real de produção:
+```bash
+pip install -r requirements.txt
+```
 
-🛡️ Lidar de forma resiliente com falhas de API
+## Execução
 
-🔁 Realizar múltiplas tentativas de coleta
+```bash
+python src/extract_cat_facts.py
+```
 
-📄 Manter o contrato de saída dos dados
+---
 
-💾 Gerar o arquivo CSV local com cabeçalho, mesmo quando não há registros
+# Questão 1 - Extração de Cat Facts
 
-✅ Com isso, o pipeline permanece estável e previsível, algo essencial em integrações com serviços externos que podem ficar indisponíveis temporariamente.
+Foi desenvolvido um script Python para consumir a API pública Cat Facts e exportar os dados para um arquivo CSV local.
 
-## ☁️ Questão 2 – Arquitetura em Nuvem (Google Cloud)
+Durante os testes, a API apresentou indisponibilidade recorrente (HTTP 503). O script foi mantido resiliente para lidar com falhas transitórias sem interromper o pipeline.
 
-☁️ Abaixo está uma proposta simples de arquitetura em Google Cloud para substituir a solução local, permitindo extrair, armazenar e disponibilizar os dados de forma escalável para o usuário final.
+Principais pontos implementados:
 
-🏗️ Essa arquitetura foi pensada para crescer junto com o volume de dados e, se necessário, pode ser implementada sem grandes mudanças estruturais.
+* tratamento de erros de integração
+* timeout configurável
+* deduplicação por `_id`
+* normalização dos dados
+* exportação para CSV
+* configuração via variáveis de ambiente
+* logging básico de execução
 
-### Arquitetura de Ingestão e Processamento
+O arquivo CSV é gerado mesmo em cenários sem retorno da API, preservando o contrato de saída do processo.
 
-**1. Fonte de Dados**
-- Cat Facts API (External)
-- Protocolo: HTTPS
-- Endpoint: `/facts/random`
+Arquivo principal:
 
-**2. Ingestão**
-- Cloud Run – Extract Service
-  - Consumo da API
-  - Validação de payload
-  - Logging e controle de erros
-  - Emissão de eventos
+```text
+src/extract_cat_facts.py
+```
 
-**3. Desacoplamento**
-- Pub/Sub
-  - Tópico: `cat-facts-raw`
-  - Retry automático
-  - Tolerância a falhas
-  - Isolamento entre ingestão e processamento
+---
 
-**4. Processamento**
-- Dataflow ou Cloud Run (Process)
-  - Normalização dos dados
-  - Deduplicação por `_id`
-  - Enriquecimento
+# Questão 2 - Arquitetura Google Cloud
 
-**5. Armazenamento**
-- RAW
-  - Cloud Storage (`bucket/raw`)
-  - Formatos: JSONL / CSV
-- CURATED
-  - BigQuery (`dataset.cat_facts`)
-  - Tabela analítica final
+A arquitetura proposta desacopla ingestão, processamento e consumo analítico dos dados.
 
-**6. Consumo**
-- SQL / Looker / Aplicações
-- Auditoria e reprocessamento a partir da camada RAW
+Fluxo proposto:
 
-**7. Orquestração**
-- Cloud Scheduler
-  - Disparo periódico da ingestão
+```text
+Cat Facts API
+    ↓
+Cloud Run (Extract)
+    ↓
+Pub/Sub
+    ↓
+Cloud Run / Dataflow (Process)
+    ↓
+Cloud Storage (RAW)
+    ↓
+BigQuery
+    ↓
+Analytics / BI
+```
 
+Componentes utilizados:
 
-## 🧠 Considerações de Arquitetura
+* Cloud Run
+* Pub/Sub
+* Cloud Storage
+* BigQuery
+* Cloud Scheduler
 
-⚙️ Cloud Run foi escolhido por ser serverless, simples de operar e escalar automaticamente conforme a demanda.
+Objetivos da arquitetura:
 
-📬 Pub/Sub desacopla a ingestão do processamento, evitando perda de dados em cenários de falha ou picos de volume.
+* escalabilidade
+* tolerância a falhas
+* reprocessamento
+* desacoplamento entre etapas
+* consumo analítico simplificado
 
-🧱 Cloud Storage (RAW) mantém os dados originais, permitindo auditoria e reprocessamento quando necessário.
+---
 
-📊 BigQuery funciona como a camada analítica final, facilitando o consumo pelo time de analytics.
+# Questão 3 - Schema BigQuery
 
-🚀 Essa arquitetura permite evoluir facilmente para um modelo near real-time no futuro, sem mudanças estruturais grandes.
+O schema analítico da tabela de fatos foi especificado em SQL considerando:
 
-ℹ️ Obs: para um volume pequeno, Cloud Functions também seria viável. A escolha do Cloud Run foi feita pensando em evolução de carga, controle de dependências e facilidade de versionamento do serviço.
+* tipagem adequada
+* rastreabilidade
+* auditoria
+* possibilidade de evolução futura
 
-## 🧾 Questão 3 – Esquema da Tabela (BigQuery)
+Arquivo:
 
-🧾 Esse esquema foi modelado para suportar consultas analíticas, auditoria e possíveis evoluções futuras do pipeline.
-
-📂 sql no caminho abaixo
-
+```text
 sql/bigquery/01_create_table_cat_facts.sql
+```
 
-## 📊 Questão 4 – Consulta de Fatos Atualizados (BigQuery)
+---
 
-📊 Para apoiar o time de analytics, foi criada uma consulta SQL que extrai todos os fatos sobre gatos que foram atualizados durante o mês de agosto de 2020.
-⏱️ A consulta utiliza o campo updated_at como TIMESTAMP e trabalha com intervalo fechado/aberto para garantir precisão temporal.
+# Questão 4 - Consulta de fatos atualizados em agosto de 2020
 
-📂 O SQL ta no caminho abaixo
+Foi criada uma consulta SQL para retornar os fatos atualizados durante agosto de 2020 utilizando o campo `updated_at`.
 
+Arquivo:
+
+```text
 sql/bigquery/02_select_cat_facts_updated_aug_2020.sql
+```
 
-## 🎲 Questão 5 – Amostra Aleatória para QA (BigQuery)
+---
 
-🎲 Para atender o time de desenvolvimento, foi criada uma consulta SQL que extrai uma amostra aleatória de 100 registros da base de fatos sobre gatos.
+# Questão 5 - Amostra aleatória para QA
 
-🧪 A consulta retorna apenas os campos necessários para o ambiente de QA:
+Foi criada uma consulta SQL para extrair 100 registros aleatórios contendo:
 
-📝Texto do fato
+* texto
+* data de criação
+* data de atualização
 
-📅Data de criação
+O resultado pode ser exportado diretamente para CSV via BigQuery.
 
-⏱️Data de atualização
+Arquivo:
 
-📤O resultado pode ser exportado diretamente para um arquivo CSV separado por vírgulas utilizando as funcionalidades nativas do BigQuery.
-
-📂sql no caminho abaixo
-
+```text
 sql/bigquery/03_sample_cat_facts_for_qa.sql
+```
 
-## 🔮 Próximos Passos Possíveis
+---
 
-🧬 Implementar controle de versionamento de schema
+# Possíveis Evoluções
 
-🧪 Criar testes automatizados para o extrator
-
-📡 Adicionar monitoramento e alertas (Cloud Monitoring)
-
-🔁 Implementar carga incremental baseada em updated_at
+* carga incremental baseada em `updated_at`
+* monitoramento e alertas
+* testes automatizados
+* controle de versionamento de schema
+* orquestração completa do pipeline
